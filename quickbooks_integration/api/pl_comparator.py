@@ -158,6 +158,8 @@ def get_live_erp_pl(start_date, end_date):
             elif r.account_type == "Depreciation" or any(k in r.account.lower() for k in ["deprec", "fluctuation", "disposal"]):
                 result["other_expenses"] += amt
                 result["accounts"][r.account] = {"category": "Other Expenses", "amount": amt}
+            elif "reversal" in r.account.lower():
+                result["accounts"][r.account] = {"category": "Reversals and Adjustments", "amount": amt}
             else:
                 result["expenses"] += amt
                 result["accounts"][r.account] = {"category": "Expenses", "amount": amt}

@@ -13,12 +13,14 @@ QBO_AUDITED_BS = {
         "equity": -931893.21,
         "total_liab_equity": 13332088.82,
         "details": {
-            "Bank & Cash Accounts": {"category": "Current Assets", "qbo": 1006931.63, "accounts": ["119010 - FCMB Bank - MTL", "119020 - Globus Bank - MTL", "119040 - Petty Cash - MTL"]},
+            "Bank & Cash Accounts": {"category": "Current Assets", "qbo": 254471.48, "accounts": ["119020 - Globus Bank - MTL", "119040 - Petty Cash - MTL"]},
             "Accounts Receivable (A/R)": {"category": "Current Assets", "qbo": 673625.00, "accounts": ["121010 - Trade Receivables - NGN - MTL"]},
-            "Prepaid Expenses": {"category": "Current Assets", "qbo": 3816034.85, "accounts": ["116050 - Prepaid Expense - MTL"]},
+            "Inventory": {"category": "Current Assets", "qbo": 241000.00, "accounts": ["120010 - Stock In Hand - Device - MTL"]},
+            "Prepaid Expenses": {"category": "Current Assets", "qbo": 3375000.00, "accounts": ["116050 - Prepaid Expense - MTL"]},
+            "WHT Receivable": {"category": "Current Assets", "qbo": 952495.00, "accounts": ["122030 - WHT Receivable - MTL"]},
             "Fixed Assets (Net of Depr.)": {"category": "Fixed Assets", "qbo": 7835497.34, "accounts": ["112010 - Office Equipments - MTL", "112020 - Computers & Peripherals - MTL", "112030 - Motor Vehicles - MTL", "112040 - Furniture & Fixtures - MTL", "112050 - Plant & Machinery - MTL", "112110 - Accumulated Depreciation - MTL"]},
-            "Accounts Payable (A/P)": {"category": "Current Liabilities", "qbo": 8565415.82, "accounts": ["225010 - Trade Creditors - NGN - MTL"]},
-            "PAYE & Pension Payable": {"category": "Current Liabilities", "qbo": 5698566.21, "accounts": ["230020 - PAYEE Payable - MTL", "229130 - Provision for Pension - MTL"]},
+            "Accounts Payable (A/P & Provisions)": {"category": "Current Liabilities", "qbo": 8565415.82, "accounts": ["225010 - Trade Creditors - NGN - MTL", "229080 - Provision for Audit Fee - MTL"]},
+            "Other Liabilities & Taxes": {"category": "Current Liabilities", "qbo": 5698566.21, "accounts": ["230030 - WHT Payable - MTL", "230040 - VAT Payable - MTL", "224050 - Oluwaseyi Onasanya - MTL"]},
             "Share Capital": {"category": "Equity", "qbo": 10000000.00, "accounts": ["233010 - Equity Share Capital - MTL"]},
             "Equity Contribution": {"category": "Equity", "qbo": 65788583.75, "accounts": ["233020 - Equity Contribution - MTL"]},
             "Cumulative Retained Earnings": {"category": "Equity", "qbo": -76720476.96, "is_pl": True},
@@ -110,7 +112,7 @@ QBO_AUDITED_BS = {
             "Net Fixed Assets (Total)": {"category": "Fixed Assets", "qbo": 273396797.03, "accounts": ["112010 - Office Equipments - MTL", "112020 - Computers & Peripherals - MTL", "112030 - Motor Vehicles - MTL", "112040 - Furniture & Fixtures - MTL", "112050 - Plant & Machinery - MTL", "112110 - Accumulated Depreciation - MTL"]},
             "Accounts Payable (NGN & USD)": {"category": "Current Liabilities", "qbo": 43498922.60, "accounts": ["225010 - Trade Creditors - NGN - MTL", "225020 - Trade Creditors - USD - MTL", "229080 - Provision for Audit Fee - MTL"]},
             "OmniRetail Loan & Payables": {"category": "Non-Current Liabilities", "qbo": 316009261.02, "accounts": ["224040 - Loan Payable - MTL", "224010 - OmniRetail Technology Limited (Payables) - MTL"]},
-            "Intercompany Movam INC": {"category": "Non-Current Liabilities", "qbo": 61581113.73, "accounts": ["228020 - Intercompany - Movam INC - MTL"]},
+            "Intercompany Movam INC": {"category": "Non-Current Liabilities", "qbo": 61581113.73, "accounts": ["228010 - Movam Inc - MTL", "228020 - Intercompany - Movam INC - MTL"]},
             "PAYE Payable": {"category": "Current Liabilities", "qbo": 1736866.56, "accounts": ["230020 - PAYEE Payable - MTL"]},
             "Pension Contribution Payable": {"category": "Current Liabilities", "qbo": 36330881.19, "accounts": ["229130 - Provision for Pension - MTL"]},
             "Corporate Income Tax Payable": {"category": "Current Liabilities", "qbo": 1884538.00, "accounts": ["230010 - Corporate Income Tax Payable - MTL"]},
@@ -148,7 +150,7 @@ def get_live_erp_bs(as_of_date):
     equity_base = sum(r["net_credit"] for r in gl_entries if r["root_type"] == "Equity")
 
     cum_income = sum(r["net_credit"] for r in gl_entries if r["root_type"] == "Income")
-    cum_expense = sum(r["net_debit"] for r in gl_entries if r["root_type"] == "Expense")
+    cum_expense = sum(r["net_debit"] for r in gl_entries if r["root_type"] == "Expense" and "reversal" not in r["account"].lower())
     cum_pl = round(cum_income - cum_expense, 2)
 
     total_equity = round(equity_base + cum_pl, 2)
@@ -288,3 +290,13 @@ def get_bs_comparison(year="all_years"):
         "all_years": all_years,
         "detail_rows": detail_rows
     }
+
+
+@frappe.whitelist()
+def apply_final_reconciliations():
+    """
+    On-demand API action to execute the final balance sheet reconciliation adjustments.
+    """
+    from quickbooks_integration.patches.v0_0_1.reconcile_final_balances import execute as run_patch
+    run_patch()
+    return {"status": "success", "message": "QuickBooks Balance Sheet reconciliations applied successfully."}
