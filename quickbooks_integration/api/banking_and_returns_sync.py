@@ -169,7 +169,7 @@ def resolve_account_from_ref(acc_ref, company, default_acc):
 
 def get_or_create_customer(cust_ref, curr="NGN"):
     if not cust_ref:
-        return frappe.db.get_value("Customer", {}, "name") or "QuickBooks Customer"
+        return frappe.db.get_value("Customer", {"customer_name": "QuickBooks Customer"}, "name") or "QuickBooks Customer"
     cust_id = cust_ref.get("value")
     cust_name = cust_ref.get("name") or f"QuickBooks Customer {cust_id}"
 
@@ -193,13 +193,13 @@ def get_or_create_customer(cust_ref, curr="NGN"):
             cdoc.insert(ignore_permissions=True)
             customer = cdoc.name
         except Exception:
-            customer = frappe.db.get_value("Customer", {}, "name") or cust_name
+            customer = frappe.db.get_value("Customer", {"customer_name": "QuickBooks Customer"}, "name") or cust_name
     return customer
 
 
 def get_or_create_supplier(vendor_ref, curr="NGN"):
     if not vendor_ref:
-        return frappe.db.get_value("Supplier", {}, "name") or "QuickBooks Supplier"
+        return frappe.db.get_value("Supplier", {"supplier_name": "QuickBooks Supplier"}, "name") or "QuickBooks Supplier"
     vendor_id = vendor_ref.get("value")
     vendor_name = vendor_ref.get("name") or f"QuickBooks Vendor {vendor_id}"
 
@@ -223,7 +223,7 @@ def get_or_create_supplier(vendor_ref, curr="NGN"):
             sdoc.insert(ignore_permissions=True)
             supplier = sdoc.name
         except Exception:
-            supplier = frappe.db.get_value("Supplier", {}, "name") or vendor_name
+            supplier = frappe.db.get_value("Supplier", {"supplier_name": "QuickBooks Supplier"}, "name") or vendor_name
     return supplier
 
 
@@ -749,7 +749,10 @@ def sync_quickbooks_deposits(user=None):
                 # Check if account is Receivable or Payable
                 acc_type = frappe.db.get_value("Account", source_acc, "account_type")
                 entity_ref = detail.get("Entity", {}) or {}
-                entity_val = entity_ref.get("EntityRef", {}) or {}
+                if "value" in entity_ref:
+                    entity_val = entity_ref
+                else:
+                    entity_val = entity_ref.get("EntityRef", {}) or {}
 
                 source_curr = frappe.db.get_value("Account", source_acc, "account_currency") or company_currency
                 line_rate = rate

@@ -257,6 +257,17 @@ def get_pl_comparison(year="2024"):
     erp_accounts = erp["accounts"]
     
     # First map known QBO details
+    EXPLICIT_PL_MAP = {
+        "Cost of SAAS": "401070 - COGS SAAS - MTL",
+        "Inventory Shrinkage": "401120 - Inventory Shrinkage - MTL",
+        "Cost of Goods/ Service Sold": "401040 - COGS Device - MTL",
+        "Driver Services Expenses": "401020 - COGS Logistics : Driver Service Expenses - MTL",
+        "Salaries and Wages": "403430 - Salaries And Wages - MTL",
+        "Office expenses": "403320 - Office Expenses - MTL",
+        "Depreciation": "403680 - Depreciation - MTL",
+        "Software Management Expenses": "403450 - Software Management Expenses - MTL",
+        "Management Fees": "403300 - Management Fees - MTL",
+    }
     qbo_details = qbo.get("details", {})
     for q_acc, q_info in qbo_details.items():
         q_val = q_info["qbo"]
@@ -265,13 +276,17 @@ def get_pl_comparison(year="2024"):
         # Match ERP account
         matched_erp_name = None
         matched_erp_amt = 0.0
-        q_clean = q_acc.lower().replace(" ", "").replace("&", "").replace("-", "").replace("/", "")
-        for e_acc, e_info in erp_accounts.items():
-            e_clean = e_acc.lower().replace(" ", "").replace("&", "").replace("-", "").replace("/", "")
-            if q_clean in e_clean or any(word in e_clean for word in q_acc.lower().split() if len(word) > 4):
-                matched_erp_name = e_acc
-                matched_erp_amt = e_info["amount"]
-                break
+        if q_acc in EXPLICIT_PL_MAP and EXPLICIT_PL_MAP[q_acc] in erp_accounts:
+            matched_erp_name = EXPLICIT_PL_MAP[q_acc]
+            matched_erp_amt = erp_accounts[matched_erp_name]["amount"]
+        else:
+            q_clean = q_acc.lower().replace(" ", "").replace("&", "").replace("-", "").replace("/", "")
+            for e_acc, e_info in erp_accounts.items():
+                e_clean = e_acc.lower().replace(" ", "").replace("&", "").replace("-", "").replace("/", "")
+                if q_clean in e_clean or any(word in e_clean for word in q_acc.lower().split() if len(word) > 4):
+                    matched_erp_name = e_acc
+                    matched_erp_amt = e_info["amount"]
+                    break
 
         diff = round(matched_erp_amt - q_val, 2)
         match_pct = calc_match(matched_erp_amt, q_val)

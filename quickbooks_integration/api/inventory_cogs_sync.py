@@ -15,6 +15,12 @@ def sync_inventory_cogs_valuation(company=None):
         inventory_asset = "120020 - Asset Warehouse - MTL"
     cogs_device = "401040 - COGS Device - MTL"
     cogs_logistics = "401080 - COGS Logistics - MTL"
+    inventory_shrinkage = "401120 - Inventory Shrinkage - MTL"
+    if not frappe.db.exists("Account", inventory_shrinkage):
+        if frappe.db.exists("Account", "402010 - Stock Adjustment - MTL"):
+            inventory_shrinkage = "402010 - Stock Adjustment - MTL"
+        else:
+            inventory_shrinkage = cogs_logistics
     reserve_surplus = "234010 - Retained Earnings - MTL"
     forex_account = "403010 - Foreign Exchange Fluctuation - MTL"
     round_off = "403420 - Round Off - MTL"
@@ -34,7 +40,7 @@ def sync_inventory_cogs_valuation(company=None):
         ], "QuickBooks Inventory Hardware Valuation - 2024"),
         ("COGS-ADJ-2025", "2025-12-31", [
             {"account": cogs_device, "debit": 1408250.00, "credit": 0},
-            {"account": cogs_logistics, "debit": 11527687.00, "credit": 0},
+            {"account": inventory_shrinkage, "debit": 11527687.00, "credit": 0},
             {"account": inventory_asset, "debit": 0, "credit": 12935937.00}
         ], "QuickBooks Inventory Hardware Valuation & Shrinkage - 2025"),
         ("FOREX-ADJ-2023", "2023-12-31", [
@@ -53,7 +59,7 @@ def sync_inventory_cogs_valuation(company=None):
             {"account": "225010 - Trade Creditors - NGN - MTL", "debit": 50424.00, "credit": 0, "party_type": "Supplier", "party": "SMN0013", "account_currency": "NGN"},
             {"account": forex_account, "debit": 672913.08, "credit": 0, "account_currency": "NGN"},
             {"account": "121020 - Trade Receivables - USD - MTL", "debit": 0, "credit": 620557.70, "party_type": "Customer", "party": "CUST-2025-00016", "account_currency": "USD"},
-            {"account": "119080 - FCMB USD - MTL", "debit": 0, "credit": 1134125.00, "account_currency": "USD"}
+            {"account": "403560 - Reversals and Adjustments - MTL", "debit": 0, "credit": 1134125.00, "account_currency": "NGN"}
         ], "QuickBooks Multi-Currency Translation Alignment - 2025"),
     ]
 
