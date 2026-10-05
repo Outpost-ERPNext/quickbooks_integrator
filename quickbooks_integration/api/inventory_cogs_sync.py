@@ -38,10 +38,13 @@ def sync_inventory_cogs_valuation(company=None):
             {"account": cogs_device, "debit": 0, "credit": 10262951.31},
             {"account": inventory_asset, "debit": 10262951.31, "credit": 0}
         ], "QuickBooks Inventory Hardware Valuation - 2024"),
-        ("COGS-ADJ-2025", "2025-12-31", [
+        ("COGS-ADJ-2025", "2025-06-30", [
             {"account": cogs_device, "debit": 1408250.00, "credit": 0},
+            {"account": inventory_asset, "debit": 0, "credit": 1408250.00}
+        ], "QuickBooks Hardware COGS Alignment - H1 2025"),
+        ("SHRINKAGE-ADJ-2025", "2025-12-31", [
             {"account": inventory_shrinkage, "debit": 11527687.00, "credit": 0},
-            {"account": inventory_asset, "debit": 0, "credit": 12935937.00}
+            {"account": inventory_asset, "debit": 0, "credit": 11527687.00}
         ], "QuickBooks Inventory Hardware Valuation & Shrinkage - 2025"),
         ("FOREX-ADJ-2023", "2023-12-31", [
             {"account": round_off, "debit": 0, "credit": 150.00},
@@ -54,13 +57,12 @@ def sync_inventory_cogs_valuation(company=None):
             {"account": forex_account, "debit": 0, "credit": 864886.67, "account_currency": "NGN"},
             {"account": round_off, "debit": 0, "credit": 675.00, "account_currency": "NGN"}
         ], "QuickBooks Multi-Currency Translation Alignment - 2024"),
-        ("FOREX-ADJ-2025", "2025-12-31", [
+        ("FOREX-ADJ-2025", "2025-06-30", [
             {"account": "225020 - Trade Creditors - USD - MTL", "debit": 1031345.62, "credit": 0, "party_type": "Supplier", "party": "SUP-2025-00017", "account_currency": "USD"},
             {"account": "225010 - Trade Creditors - NGN - MTL", "debit": 50424.00, "credit": 0, "party_type": "Supplier", "party": "SMN0013", "account_currency": "NGN"},
-            {"account": forex_account, "debit": 672913.08, "credit": 0, "account_currency": "NGN"},
             {"account": "121020 - Trade Receivables - USD - MTL", "debit": 0, "credit": 620557.70, "party_type": "Customer", "party": "CUST-2025-00016", "account_currency": "USD"},
-            {"account": "403560 - Reversals and Adjustments - MTL", "debit": 0, "credit": 1134125.00, "account_currency": "NGN"}
-        ], "QuickBooks Multi-Currency Translation Alignment - 2025"),
+            {"account": forex_account, "debit": 0, "credit": 461211.92, "account_currency": "NGN"}
+        ], "QuickBooks Multi-Currency Translation Alignment - H1 2025"),
     ]
 
     updated_count = 0
@@ -124,7 +126,18 @@ def sync_inventory_cogs_valuation(company=None):
             jea.idx = idx
             jea.insert(ignore_permissions=True)
 
+        frappe.db.set_value("Journal Entry", doc.name, {
+            "posting_date": posting_date,
+            "user_remark": remark,
+            "total_debit": tot_dr,
+            "total_credit": tot_cr,
+            "difference": round(tot_dr - tot_cr, 2),
+            "multi_currency": 1
+        }, update_modified=False)
+
         doc.reload()
+        doc.posting_date = posting_date
+        doc.user_remark = remark
         doc.total_debit = tot_dr
         doc.total_credit = tot_cr
         doc.difference = round(tot_dr - tot_cr, 2)
@@ -132,6 +145,7 @@ def sync_inventory_cogs_valuation(company=None):
         doc._user_tags = ",QB Adjustments,"
         doc.db_update()
         doc.make_gl_entries()
+        frappe.db.sql("UPDATE `tabGL Entry` SET posting_date = %s WHERE voucher_type = 'Journal Entry' AND voucher_no = %s", (posting_date, doc.name))
         frappe.db.set_value("Journal Entry", doc.name, "_user_tags", ",QB Adjustments,")
 
     try:
@@ -145,12 +159,12 @@ def sync_inventory_cogs_valuation(company=None):
                 name,
                 'QB Adjustments'
             FROM `tabJournal Entry`
-            WHERE custom_quickbooks_je_id LIKE 'COGS-%' OR custom_quickbooks_je_id LIKE 'FOREX-%'
+            WHERE custom_quickbooks_je_id LIKE 'COGS-%' OR custom_quickbooks_je_id LIKE 'FOREX-%' OR custom_quickbooks_je_id LIKE 'SHRINKAGE-%'
         """)
         frappe.db.sql("""
             UPDATE `tabJournal Entry`
             SET _user_tags = ',QB Adjustments,'
-            WHERE (custom_quickbooks_je_id LIKE 'COGS-%' OR custom_quickbooks_je_id LIKE 'FOREX-%')
+            WHERE (custom_quickbooks_je_id LIKE 'COGS-%' OR custom_quickbooks_je_id LIKE 'FOREX-%' OR custom_quickbooks_je_id LIKE 'SHRINKAGE-%')
               AND (_user_tags IS NULL OR _user_tags = '')
         """)
     except Exception:

@@ -175,30 +175,40 @@ def reclassify_commission_and_fines(company):
     target_acc = "403130 - Commission And Fines - MTL"
     source_acc = "403320 - Office Expenses - MTL"
 
+    target_qb_ids = ('EXP-14342', 'EXP-14416', 'EXP-15386', 'EXP-17697', 'EXP-18917', 'EXP-19350')
+    target_jv_names = ('ACC-JV-2026-17036', 'ACC-JV-2026-17028', 'ACC-JV-2026-16610', 'ACC-JV-2026-15521', 'ACC-JV-2026-14836', 'ACC-JV-2026-14615')
+
     jes = frappe.db.sql("""
-        SELECT DISTINCT ja.parent
+        SELECT DISTINCT ja.parent, ja.name as row_name
         FROM `tabJournal Entry Account` ja
         JOIN `tabJournal Entry` j ON ja.parent = j.name
-        WHERE ja.account = %s
-          AND j.company = %s
+        WHERE ja.account = %(acc)s
+          AND j.company = %(company)s
           AND (ja.cost_center = 'QuickBooks - MTL' OR j.channel = 'QuickBooks' OR ja.channel = 'QuickBooks')
           AND (
-              j.user_remark LIKE '%%Account: 28%%'
+              j.custom_quickbooks_je_id IN %(qb_ids)s
+              OR j.name IN %(jv_names)s
+              OR j.user_remark LIKE '%%Account: 28%%'
               OR ja.user_remark LIKE '%%Account: 28%%'
               OR j.user_remark LIKE '%%commission%%'
               OR ja.user_remark LIKE '%%commission%%'
               OR j.user_remark LIKE '%%fine%%'
               OR ja.user_remark LIKE '%%fine%%'
           )
-    """, (source_acc, company), as_dict=True)
+    """, {
+        "acc": source_acc,
+        "company": company,
+        "qb_ids": target_qb_ids,
+        "jv_names": target_jv_names
+    }, as_dict=True)
 
     count = 0
     for j in jes:
         frappe.db.sql("""
             UPDATE `tabJournal Entry Account`
             SET account = %s
-            WHERE parent = %s AND account = %s
-        """, (target_acc, j.parent, source_acc))
+            WHERE name = %s
+        """, (target_acc, j.row_name))
 
         frappe.db.sql("""
             UPDATE `tabGL Entry`
@@ -208,4 +218,4 @@ def reclassify_commission_and_fines(company):
         count += 1
 
     if count:
-        print(f"  Reclassified {count} Commission/Fine Journal Entries from {source_acc} to {target_acc}")
+        print(f"  Reclassified {count} Commission/Fine rows from {source_acc} to {target_acc}")

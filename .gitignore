@@ -15,3 +15,4 @@ quickbooks_integration/*.py
 !quickbooks_integration/__init__.py
 !quickbooks_integration/hooks.py
 quickbooks_integration/*.json
+*.xlsx
