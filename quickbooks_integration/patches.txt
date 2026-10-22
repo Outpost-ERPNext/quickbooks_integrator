@@ -7,3 +7,4 @@
 quickbooks_integration.patches.v0_0_1.reconcile_final_balances
 quickbooks_integration.patches.v0_0_1.reclassify_discrepancies_and_align_ledgers
 quickbooks_integration.patches.v0_0_1.align_h1_2025_qbo_discrepancies
+quickbooks_integration.patches.v0_0_1.separate_prepayment_accounts
