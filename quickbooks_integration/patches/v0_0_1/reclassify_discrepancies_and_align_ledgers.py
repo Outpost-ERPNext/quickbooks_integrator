@@ -9,7 +9,8 @@ def execute():
     3. Reclassify 2025 Inventory Shrinkage (11,527,687.00) from 401080 to 401120.
     4. Reclassify Cost of SAAS from '401080 - COGS Logistics - MTL' to '401070 - COGS SAAS - MTL' for all QBO-synced entries.
     5. Reclassify Commission and Fines from '403320 - Office Expenses - MTL' to '403130 - Commission And Fines - MTL' where applicable.
-    6. Run sync_inventory_cogs_valuation() to synchronize all valuation and alignment entries.
+    6. Separate merged Prepayment accounts: reclassify Business Promotion to 116020 and Transportation to 116040.
+    7. Run sync_inventory_cogs_valuation() to synchronize all valuation and alignment entries.
     
     SAFETY GUARANTEE:
     - Exclusively targets specific QuickBooks-synced Journal Entries.
@@ -34,7 +35,10 @@ def execute():
     # 5. Reclassify Commission and Fines
     reclassify_commission_and_fines(company)
 
-    # 6. Re-sync valuation entries
+    # 6. Reclassify Merged Prepayment Ledgers (Business Promotion & Transportation)
+    reclassify_prepayment_ledgers(company)
+
+    # 7. Re-sync valuation entries
     sync_inventory_cogs_valuation(company)
 
     frappe.db.commit()
@@ -219,3 +223,102 @@ def reclassify_commission_and_fines(company):
 
     if count:
         print(f"  Reclassified {count} Commission/Fine rows from {source_acc} to {target_acc}")
+
+
+def reclassify_prepayment_ledgers(company):
+    """
+    Separates merged Prepayment accounts:
+    1. Reclassifies Business Promotion prepayments from 116050 to 116020:
+       - Direct expenses (Meetups, T-Shirts, Mobile Retail Permit): ACC-JV-2026-14368, 14566, 14369, 14367, 14370, 14241, 14799
+       - QBO Amortization JEs: ACC-JV-2026-13498, 13471, 13465, 13464, 13459
+    2. Reclassifies Transportation prepayments from 116050 to 116040:
+       - Direct expenses (Trips to Benin, Ibadan, Abuja): ACC-JV-2026-14743, 14742, 14796, 14763
+       - QBO Amortization JEs: ACC-JV-2026-13489, 13487, 13496, 13488, 13470, 13486
+    
+    SAFETY GUARANTEE:
+    - Strictly targets QBO vouchers with cost_center / channel QuickBooks.
+    - Completely idempotent.
+    """
+    source_acc = "116050 - Prepaid Expense - MTL"
+    bp_target = "116020 - Prepaid Business Promotion & Marketing Expenses - MTL"
+    tr_target = "116040 - Prepaid Transportation - MTL"
+
+    if not frappe.db.exists("Account", bp_target) or not frappe.db.exists("Account", tr_target):
+        print("  Warning: Target prepayment accounts do not exist in Chart of Accounts.")
+        return
+
+    bp_vouchers = (
+        'ACC-JV-2026-14368', 'ACC-JV-2026-14566', 'ACC-JV-2026-14369',
+        'ACC-JV-2026-14367', 'ACC-JV-2026-14370', 'ACC-JV-2026-14241',
+        'ACC-JV-2026-14799',
+        'ACC-JV-2026-13498', 'ACC-JV-2026-13471', 'ACC-JV-2026-13465',
+        'ACC-JV-2026-13464', 'ACC-JV-2026-13459'
+    )
+
+    tr_vouchers = (
+        'ACC-JV-2026-14743', 'ACC-JV-2026-14742', 'ACC-JV-2026-14796',
+        'ACC-JV-2026-14763',
+        'ACC-JV-2026-13489', 'ACC-JV-2026-13487', 'ACC-JV-2026-13496',
+        'ACC-JV-2026-13488', 'ACC-JV-2026-13470', 'ACC-JV-2026-13486'
+    )
+
+    # 1. Reclassify Business Promotion
+    bp_rows = frappe.db.sql("""
+        SELECT DISTINCT ja.parent, ja.name as row_name
+        FROM `tabJournal Entry Account` ja
+        JOIN `tabJournal Entry` j ON ja.parent = j.name
+        WHERE ja.account = %(source)s
+          AND j.name IN %(vouchers)s
+          AND j.company = %(company)s
+          AND (ja.cost_center LIKE 'QuickBooks%%' OR j.channel = 'QuickBooks' OR ja.channel = 'QuickBooks')
+    """, {"source": source_acc, "vouchers": bp_vouchers, "company": company}, as_dict=True)
+
+    bp_count = 0
+    for r in bp_rows:
+        frappe.db.sql("""
+            UPDATE `tabJournal Entry Account`
+            SET account = %s
+            WHERE name = %s
+        """, (bp_target, r.row_name))
+
+        frappe.db.sql("""
+            UPDATE `tabGL Entry`
+            SET account = %s
+            WHERE voucher_no = %s AND account = %s
+              AND (cost_center LIKE 'QuickBooks%%' OR channel = 'QuickBooks')
+        """, (bp_target, r.parent, source_acc))
+        bp_count += 1
+
+    if bp_count:
+        print(f"  Reclassified {bp_count} Business Promotion rows from {source_acc} to {bp_target}")
+
+    # 2. Reclassify Transportation
+    tr_rows = frappe.db.sql("""
+        SELECT DISTINCT ja.parent, ja.name as row_name
+        FROM `tabJournal Entry Account` ja
+        JOIN `tabJournal Entry` j ON ja.parent = j.name
+        WHERE ja.account = %(source)s
+          AND j.name IN %(vouchers)s
+          AND j.company = %(company)s
+          AND (ja.cost_center LIKE 'QuickBooks%%' OR j.channel = 'QuickBooks' OR ja.channel = 'QuickBooks')
+    """, {"source": source_acc, "vouchers": tr_vouchers, "company": company}, as_dict=True)
+
+    tr_count = 0
+    for r in tr_rows:
+        frappe.db.sql("""
+            UPDATE `tabJournal Entry Account`
+            SET account = %s
+            WHERE name = %s
+        """, (tr_target, r.row_name))
+
+        frappe.db.sql("""
+            UPDATE `tabGL Entry`
+            SET account = %s
+            WHERE voucher_no = %s AND account = %s
+              AND (cost_center LIKE 'QuickBooks%%' OR channel = 'QuickBooks')
+        """, (tr_target, r.parent, source_acc))
+        tr_count += 1
+
+    if tr_count:
+        print(f"  Reclassified {tr_count} Transportation rows from {source_acc} to {tr_target}")
+
