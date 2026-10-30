@@ -222,7 +222,7 @@ def ensure_valuation_dates(company):
         "2022": ("%QuickBooks Inventory Hardware Valuation - 2022%", "2022-12-31"),
         "2023": ("%QuickBooks Inventory Hardware Valuation - 2023%", "2023-12-31"),
         "2024": ("%QuickBooks Inventory Hardware Valuation - 2024%", "2024-12-31"),
-        "2025": ("%QuickBooks Inventory Hardware Valuation%2025%", "2025-12-31"),
+        "2025": ("%QuickBooks Inventory Hardware Valuation%2025%", "2025-06-30"),
     }
     
     for yr, (pattern, target_date) in date_mapping.items():

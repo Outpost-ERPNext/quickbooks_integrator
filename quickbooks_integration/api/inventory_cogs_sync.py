@@ -42,8 +42,8 @@ def sync_inventory_cogs_valuation(company=None):
             {"account": cogs_device, "debit": 1408250.00, "credit": 0},
             {"account": inventory_asset, "debit": 0, "credit": 1408250.00}
         ], "QuickBooks Hardware COGS Alignment - H1 2025"),
-        ("SHRINKAGE-ADJ-2025", "2025-12-31", [
-            {"account": inventory_shrinkage, "debit": 11527687.00, "credit": 0},
+        ("SHRINKAGE-ADJ-2025", "2025-06-30", [
+            {"account": reserve_surplus, "debit": 11527687.00, "credit": 0},
             {"account": inventory_asset, "debit": 0, "credit": 11527687.00}
         ], "QuickBooks Inventory Hardware Valuation & Shrinkage - 2025"),
         ("FOREX-ADJ-2023", "2023-12-31", [
